@@ -4,40 +4,38 @@ using System.Windows;
 
 public class Asset : INotifyPropertyChanged
 {
-    private string _name;
-    private string _inventoryNumber;
+    private string name;
+    private string inventoryNumber;
 
     public int Id { get; set; }
 
     public string InventoryNumber
     {
-        get => _inventoryNumber;
+        get => inventoryNumber;
         set
         {
-            _inventoryNumber = value;
+            inventoryNumber = value;
             OnPropertyChanged();
         }
     }
-
-
 
     public string Name
     {
-        get => _name;
+        get => name;
         set
         {
-            _name = value;
+            name = value;
             OnPropertyChanged();
         }
     }
 
-    private bool _isSelected;
+    private bool isSelected;
     public bool IsSelected
     {
-        get => _isSelected;
+        get => isSelected;
         set
         {
-            _isSelected = value;
+            isSelected = value;
             OnPropertyChanged();
 
             // Автоматически обновляем предпросмотр
@@ -51,5 +49,17 @@ public class Asset : INotifyPropertyChanged
     protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private string _labelText = "ОС"; // По умолчанию "ОС"
+
+    public string LabelText
+    {
+        get => _labelText;
+        set
+        {
+            _labelText = value;
+            OnPropertyChanged();
+        }
     }
 }

@@ -1,63 +1,70 @@
 ﻿<UserControl x:Class="BarcodePrinterApp.BarcodeLabel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Width="300" Height="141">
-    <Border BorderBrush="Black" BorderThickness="1" Padding="10">
-        <Grid Margin="0,0,0,7">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <!-- Для логотипа -->
-                <ColumnDefinition Width="*"/>
-                <!-- Основное содержание -->
-            </Grid.ColumnDefinitions>
+             Width="258" Height="105">
+    <Grid Margin="0">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
 
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <!-- Логотип + ОС -->
-                <RowDefinition Height="100"/>
-                <!-- Штрих-код -->
-                <RowDefinition Height="50"/>
-                <!-- Наименование -->
-            </Grid.RowDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-            <!-- Логотип (левый столбец) -->
-            <Image Grid.Row="1" Grid.Column="0"
-                   Source="C:\Temp\logo.png"
-                   Margin="0,10,7,48"/>
+        <!-- Логотип и ОС (левый столбец) -->
+        <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Vertical" 
+                    VerticalAlignment="Center" Margin="5,0,2,0">
+            <!-- Уменьшил правый отступ с 5 до 2 -->
+            <Image Source="/gaz.png" 
+                   HorizontalAlignment="Center" 
+                   Width="48" Height="48"/>
+        </StackPanel>
 
-            <!-- Текст "ОС" под логотипом -->
-            <TextBlock Grid.Row="1"
-                      Text="ОС" 
+        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Vertical" 
+            VerticalAlignment="Center" Margin="12,0,10,0">
+            <Border BorderBrush="Black" 
+                BorderThickness="1"
+                Background="White"
+                Width="38"
+                Height="19">
+                <TextBlock Text="{Binding LabelText}"
                       FontSize="14"
                       HorizontalAlignment="Center"
-                      VerticalAlignment="Top"
-                      Margin="0,56,0,0" Width="24"/>
+                      VerticalAlignment="Center"
+                      FontWeight="Bold"/>
+            </Border>
+        </StackPanel>
 
-            <!-- Штрих-код -->
-            <Image x:Name="BarcodeImage" 
-                     Grid.Row="1" 
-                     Grid.Column="1"
-                     Margin="0"
-                     Stretch="UniformToFill"  
-                     VerticalAlignment="Center"
-                     HorizontalAlignment="Center"/>
+        <!-- Штрих-код -->
+        <Image x:Name="BarcodeImage" 
+               Grid.Row="0" Grid.Column="1"
+               Margin="2,0,5,0" 
+            Stretch="Uniform"  
+               VerticalAlignment="Center"
+               HorizontalAlignment="Center"
+               Height="50"/>
+
+            <!-- Инвентарный номер под штрих-кодом -->
+            <TextBlock Grid.Row="1" Grid.Column="1"
+                   Text="{Binding InventoryNumber}"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Top"
+                   FontSize="20"
+                   FontWeight="Bold"
+                   Margin="5,-5,5,0"/>
 
             <!-- Наименование -->
-            <TextBlock Grid.Row="2" Grid.ColumnSpan="2"
-                      Text="{Binding Name}" 
-                      TextWrapping="Wrap"
-                      HorizontalAlignment="Left"
-                      VerticalAlignment="Top"
-                      MaxHeight="60" RenderTransformOrigin="0.5,0.5" Width="278" Height="20">
-                <TextBlock.RenderTransform>
-                    <TransformGroup>
-                        <ScaleTransform ScaleX="1"/>
-                        <SkewTransform/>
-                        <RotateTransform/>
-                        <TranslateTransform/>
-                    </TransformGroup>
-                </TextBlock.RenderTransform>
-            </TextBlock>
-        </Grid>
-    </Border>
+            <TextBlock Grid.Row="2" Grid.Column="1"
+                   Text="{Binding Name}"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Top"
+                   Margin="5,0,5,0"
+                   FontSize="12"
+                   MaxWidth="250" 
+                   TextAlignment="Center" 
+                   TextWrapping="Wrap"/>
+    </Grid>
 </UserControl>

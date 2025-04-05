@@ -35,25 +35,12 @@ namespace BarcodePrinterApp
             // Обновляем штрих-код при изменении DataContext
             if (e.NewValue is Asset asset)
             {
-                BarcodeImage.Source = GenerateBarcode(asset.InventoryNumber);
+                BarcodeImage.Source = BarcodeGenerator.GenerateBarcode(asset.InventoryNumber);
+
+                // Отладочная информация
+                Console.WriteLine($"DataContext changed for {asset.InventoryNumber}");
             }
-        }
-
-        private BitmapSource GenerateBarcode(string inventoryNumber)
-        {
-            var writer = new BarcodeWriter
-            {
-                Format = BarcodeFormat.CODE_128,
-                Options = new EncodingOptions { Height = 80, Width = 250 }
-            };
-
-            Bitmap bitmap = writer.Write(inventoryNumber);
-            return Imaging.CreateBitmapSourceFromHBitmap(
-                bitmap.GetHbitmap(),
-                IntPtr.Zero,
-                Int32Rect.Empty,
-                BitmapSizeOptions.FromEmptyOptions()
-            );
         }
     }
 }
+                                            

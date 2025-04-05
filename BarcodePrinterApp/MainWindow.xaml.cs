@@ -1,15 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Input;
 using System.Windows.Media.Imaging;
-using System.Windows.Threading;
 using ZXing;
 using ZXing.Common;
-using System.Drawing;
 using System.Windows.Interop;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -18,165 +13,236 @@ namespace BarcodePrinterApp
 {
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
-        private readonly CsvRepository _repository = new CsvRepository();
-        private ObservableCollection<Asset> _assets;
-        private bool? _isAllSelected;
+        #region [Поля]
+        private readonly XlsxRepository repository = new XlsxRepository(); // Репозиторий для загрузки данных
+        private ObservableCollection<Asset> assets; // Коллекция активов
+        private bool? isAllSelected; // Состояние выбора всех элементов
+        #endregion
 
+        #region [События]
+        public event PropertyChangedEventHandler PropertyChanged; // Событие для уведомления об изменении свойств
+        #endregion
+
+        #region [Конструктор]
         public MainWindow()
         {
-            InitializeComponent();
-            LoadData();
+            InitializeComponent(); // Инициализация компонентов окна
+            LoadData(); // Загрузка данных при создании окна
         }
+        #endregion
 
+        #region [Свойства]
         public bool? IsAllSelected
         {
-            get => _isAllSelected;
+            get => isAllSelected; // Получение состояния выбора всех элементов
             set
             {
-                if (_isAllSelected == value) return;
-                _isAllSelected = value;
-                OnPropertyChanged(nameof(IsAllSelected));
-                SetAllSelectionState(value ?? false);
+                if (isAllSelected == value) return; // Если значение не изменилось, выходим
+                isAllSelected = value; // Устанавливаем новое значение
+                OnPropertyChanged(nameof(IsAllSelected)); // Уведомляем об изменении свойства
+                SetAllSelectionState(value ?? false); // Устанавливаем состояние выбора для всех элементов
             }
         }
+        #endregion
 
-        private void LoadData()
+        #region [Публичные методы]
+        public void UpdatePreview()
         {
-            var assets = _repository.LoadAssets();
-            _assets = new ObservableCollection<Asset>(assets);
-            _assets.CollectionChanged += (s, e) => UpdateAllSelectionState();
-            AssetsGrid.ItemsSource = _assets;
-        }
+            var selectedItems = assets.Where(a => a.IsSelected).ToList(); // Получаем выбранные элементы
+            PreviewContainer.ItemsSource = selectedItems; // Обновляем источник данных для контейнера предпросмотра
 
-        private void AddButton_Click(object sender, RoutedEventArgs e)
-        {
-            int newId = _assets.Any() ? _assets.Max(a => a.Id) + 1 : 1;
-            var newAsset = new Asset { Id = newId, InventoryNumber = "[Новый номер]", Name = "[Новое наименование]" };
-            _assets.Add(newAsset);
-            AssetsGrid.ScrollIntoView(newAsset);
-            _repository.SaveAssets(_assets.ToList());
-        }
-
-        private void DeleteButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (AssetsGrid.SelectedItem is Asset selectedAsset)
+            foreach (var asset in selectedItems)
             {
-                _assets.Remove(selectedAsset);
-                _repository.SaveAssets(_assets.ToList());
-            }
-        }
-
-        private BitmapSource GenerateBarcode(string inventoryNumber)
-        {
-            var writer = new BarcodeWriter
-            {
-                Format = BarcodeFormat.CODE_128,
-                Options = new EncodingOptions { Height = 120, Width = 350 }
-            };
-
-            using (var bitmap = writer.Write(inventoryNumber))
-            {
-                return Imaging.CreateBitmapSourceFromHBitmap(
-                    bitmap.GetHbitmap(),
-                    IntPtr.Zero,
-                    Int32Rect.Empty,
-                    BitmapSizeOptions.FromEmptyOptions()
-                );
-            }
-        }
-
-        private void PrintButton_Click(object sender, RoutedEventArgs e)
-        {
-            var selectedAssets = _assets.Where(a => a.IsSelected).ToList();
-            if (!selectedAssets.Any())
-            {
-                MessageBox.Show("Выберите хотя бы одну запись!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            var printDialog = new PrintDialog();
-            if (printDialog.ShowDialog() == true)
-            {
-                foreach (var asset in selectedAssets)
+                var container = PreviewContainer.ItemContainerGenerator.ContainerFromItem(asset);
+                if (container is ContentPresenter presenter && presenter.FindName("BarcodeImage") is System.Windows.Controls.Image barcodeImage)
                 {
-                    var label = CreateBarcodeLabel(asset);
-                    printDialog.PrintVisual(label, $"Печать {asset.InventoryNumber}");
+                    barcodeImage.Source = BarcodeGenerator.GenerateBarcode(asset.InventoryNumber); // Генерируем и устанавливаем штрих-код для выбранного элемента
+
                 }
             }
         }
+        #endregion
+
+        #region [Обработчики событий]
+        private void HeaderCheckBox_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkBox)
+            {
+                SetAllSelectionState(checkBox.IsChecked == true); // Устанавливаем состояние выбора для всех элементов в зависимости от состояния CheckBox
+            }
+        }
+
+        private void SelectFileButton_Click(object sender, RoutedEventArgs e)
+        {
+            var openFileDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "Excel files (*.xlsx)|*.xlsx|All files (*.*)|*.*",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                repository.SetFilePath(openFileDialog.FileName); // Устанавливаем путь к файлу
+                LoadData(); // Перезагружаем данные
+            }
+        }
+
+        private void RadioButton_Checked(object sender, RoutedEventArgs e)
+        {
+            if (RadioButtonOS.IsChecked == true)
+            {
+                // Выбран "ОС"
+                UpdateLabelText("ОС");
+            }
+            else if (RadioButtonTMS.IsChecked == true)
+            {
+                // Выбран "ТМС"
+                UpdateLabelText("ТМЦ");
+            }
+        }
+
+        //private void PrintButton_Click(object sender, RoutedEventArgs e)
+        //{
+        //    // Получаем выбранные элементы
+        //    var selectedItems = assets.Where(a => a.IsSelected).ToList();
+
+        //    // Создаем контейнер для печати
+        //    var printContainer = new StackPanel();
+
+        //    // Создаем метки для каждого выбранного актива
+        //    foreach (var asset in selectedItems)
+        //    {
+        //        var label = CreateBarcodeLabel(asset);
+        //        printContainer.Children.Add(label);
+        //    }
+
+        //    // Создаем диалог печати
+        //    var printDialog = new PrintDialog();
+        //    if (printDialog.ShowDialog() == true)
+        //    {
+        //        // Устанавливаем размер страницы для печати
+        //        printContainer.Measure(new System.Windows.Size(printDialog.PrintableAreaWidth, printDialog.PrintableAreaHeight));
+        //        printContainer.Arrange(new Rect(new System.Windows.Point(0, 0), printContainer.DesiredSize));
+
+        //        // Печатаем содержимое
+        //        printDialog.PrintVisual(printContainer, "Печать штрих-кодов");
+        //    }
+        //}
+        private void PrintButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Получаем выбранные элементы
+            var selectedItems = assets.Where(a => a.IsSelected).ToList();
+
+            // Создаем диалог печати
+            var printDialog = new PrintDialog();
+            if (printDialog.ShowDialog() != true)
+                return;
+
+            // Печатаем каждый штрих-код на отдельной странице
+            foreach (var asset in selectedItems)
+            {
+                // Создаем контейнер для печати (одна страница)
+                var printContainer = new StackPanel();
+
+                // Создаем метку для текущего актива
+                var label = CreateBarcodeLabel(asset);
+                printContainer.Children.Add(label);
+
+                // Устанавливаем размер страницы для печати
+                printContainer.Measure(new System.Windows.Size(printDialog.PrintableAreaWidth, printDialog.PrintableAreaHeight));
+                printContainer.Arrange(new Rect(new System.Windows.Point(0, 0), printContainer.DesiredSize));
+
+                // Печатаем текущую страницу
+                printDialog.PrintVisual(printContainer, $"Печать штрих-кода {asset.InventoryNumber}");
+            }
+        }
+        #endregion
+
+        #region [Приватные методы]
 
         private BarcodeLabel CreateBarcodeLabel(Asset asset)
         {
             var label = new BarcodeLabel
             {
                 DataContext = asset,
-                Width = 300,
-                Height = 250
+                Width = 258,
+                Height = 105
             };
-            label.BarcodeImage.Source = GenerateBarcode(asset.InventoryNumber);
+            label.BarcodeImage.Source = BarcodeGenerator.GenerateBarcode(asset.InventoryNumber);
             label.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
             label.Arrange(new Rect(label.DesiredSize));
             return label;
         }
 
-        public void UpdatePreview()
+        //private BarcodeLabel CreateBarcodeLabel(Asset asset)
+        //{
+        //    var label = new BarcodeLabel
+        //    {
+        //        DataContext = asset, // Устанавливаем контекст данных для метки
+        //        /*Width = 300, // Устанавливаем ширину метки
+        //        Height = 140 // Устанавливаем высоту метки*/
+        //        Width = 258,
+        //        Height = 105
+        //    };
+        //    label.BarcodeImage.Source = BarcodeGenerator.GenerateBarcode(asset.InventoryNumber); // Используем статический метод
+        //    label.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity)); // Измеряем метку
+        //    label.Arrange(new Rect(label.DesiredSize)); // Упорядочиваем метку
+        //    return label; // Возвращаем созданную метку
+        //}
+
+        private void LoadData()
         {
-            var selectedItems = _assets.Where(a => a.IsSelected).ToList();
-            PreviewContainer.ItemsSource = selectedItems;
-
-            foreach (var item in PreviewContainer.Items)
-            {
-                if (item is Asset asset)
-                {
-                    var container = PreviewContainer.ItemContainerGenerator.ContainerFromItem(item);
-                    if (container is ContentPresenter presenter && presenter.FindName("BarcodeImage") is System.Windows.Controls.Image barcodeImage)
-                    {
-                        barcodeImage.Source = GenerateBarcode(asset.InventoryNumber);
-                    }
-                }
-            }
+            var assets = repository.LoadAssets(); // Загружаем данные из репозитория
+            this.assets = new ObservableCollection<Asset>(assets); // Инициализируем коллекцию активов
+            this.assets.CollectionChanged += (s, e) => UpdateAllSelectionState(); // Подписываемся на событие изменения коллекции
+            AssetsGrid.ItemsSource = this.assets; // Устанавливаем источник данных для DataGrid
+            UpdatePreview();
         }
-
-        private void SelectAll_Click(object sender, RoutedEventArgs e) => SetAllSelectionState(true);
-
-        private void DeselectAll_Click(object sender, RoutedEventArgs e) => SetAllSelectionState(false);
 
         private void SetAllSelectionState(bool isSelected)
         {
-            foreach (var asset in _assets)
+            foreach (var asset in assets)
             {
-                asset.IsSelected = isSelected;
+                asset.IsSelected = isSelected; // Устанавливаем состояние выбора для каждого элемента
             }
         }
 
         private void UpdateAllSelectionState()
         {
-            if (_assets == null || !_assets.Any())
+            if (assets == null || !assets.Any())
             {
-                IsAllSelected = false;
+                IsAllSelected = false; // Если коллекция пуста, сбрасываем состояние выбора
                 return;
             }
 
-            var selectedCount = _assets.Count(a => a.IsSelected);
+            var selectedCount = assets.Count(a => a.IsSelected); // Считаем количество выбранных элементов
             IsAllSelected = selectedCount switch
             {
-                0 => false,
-                _ when selectedCount == _assets.Count => true,
-                _ => null
+                0 => false, // Ни один элемент не выбран
+                _ when selectedCount == assets.Count => true, // Все элементы выбраны
+                _ => null // Некоторые элементы выбраны, но не все
             };
         }
 
-        private void Asset_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        protected void OnPropertyChanged(string propertyName)
         {
-            if (e.PropertyName == nameof(Asset.IsSelected))
-            {
-                Dispatcher.BeginInvoke(new Action(UpdateAllSelectionState), DispatcherPriority.Background);
-            }
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)); // Уведомляем об изменении свойства
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        private void UpdateLabelText(string labelText)
+        {
+            if (PreviewContainer == null || PreviewContainer.ItemsSource == null || !PreviewContainer.ItemsSource.OfType<object>().Any())
+                return;
+
+            foreach (var item in PreviewContainer.Items)
+            {
+                if (item is Asset asset)
+                {
+                    asset.LabelText = labelText;
+                }
+            }
+        }
+        #endregion
     }
 }
-
 
